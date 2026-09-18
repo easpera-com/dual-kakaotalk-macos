@@ -8,7 +8,7 @@
 
 Intel 검증 장비는 macOS 13.7.8(22H730)을 실행합니다. 공식 카카오톡 26.8.0(2000)의 bundle identifier는 `com.kakao.KakaoTalkMac`, Team ID는 `L75WVXX68A`이며 strict deep signature가 유효하고 실행 파일은 Universal x86_64/arm64입니다. asset 이외의 정확한 호환성 정보는 `compatibility.json`에 기록되어 있습니다.
 
-Dock 아이콘 픽셀 변경은 코드 서명과 macOS의 실행 중 아이콘 선택 방식 때문에 지원하지 않습니다. 대신 Dock과 앱 전환기에서 듀얼 앱을 `듀얼 카카오톡`으로 표시합니다. 초록색 메뉴 막대 상태는 `Contents/Resources/Assets.car`에 있으며, macOS에는 이 컴파일된 포맷을 쓰는 공개 API가 없습니다.
+Dock 아이콘은 공개 AppKit으로 사용자의 맥에서 다시 칠합니다. 번들이 이미 가진 `.icns`를 읽어 노란색 배경만 초록색(`#32C67A`)으로 색조 회전한 뒤 `/usr/bin/iconutil`로 다시 만들고, staged copy 안에서만 교체합니다. 비공개 API도 지문 허용 목록도 쓰지 않으므로 카카오톡 버전과 무관하게 동작합니다. Dock과 앱 전환기의 표시 이름은 그대로 `듀얼 카카오톡`입니다. 앱이 실행 중에 `NSApplication.applicationIconImage`로 자체 아이콘을 덮어쓰는 경우에는 실행 중 Dock 아이콘이 원본으로 보일 수 있으므로 실기기 확인이 필요합니다. 초록색 메뉴 막대 상태는 `Contents/Resources/Assets.car`에 있으며, macOS에는 이 컴파일된 포맷을 쓰는 공개 API가 없습니다.
 
 ## 현재 구현
 

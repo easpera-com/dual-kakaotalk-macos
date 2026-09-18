@@ -2,7 +2,7 @@
 
 [한국어](README.md) | [English](README.en.md)
 
-Creates a separate `/Applications/KakaoTalkWork.app` from the official `/Applications/KakaoTalk.app`, allowing personal and Dual KakaoTalk accounts to run side by side. The dual app appears as `Dual KakaoTalk` in the Dock and app switcher, while its menu-bar icons are changed locally to green (`#5B8A72`).
+Creates a separate `/Applications/KakaoTalkWork.app` from the official `/Applications/KakaoTalk.app`, allowing personal and Dual KakaoTalk accounts to run side by side. The dual app appears as `Dual KakaoTalk` in the Dock and app switcher, its app icon background is changed locally to green (`#32C67A`), and its menu-bar icons to green (`#5B8A72`).
 
 > [!WARNING]
 > This limited beta is intended only for the repository owner and acquaintances who trust the downloaded folder. It uses ad-hoc signing, an administrator prompt, and undocumented private macOS CoreUI APIs. It is not a notarized general-public installer. Verify the ZIP SHA-256 shown on the GitHub Release before running it. Apple or KakaoTalk updates may break it. Intel macOS 13 and Apple M3 macOS 26.5.2 have been physically verified.
@@ -27,13 +27,13 @@ The Dock distinguishes the apps by their localized names:
 
 - macOS Ventura 13 or newer
 - Official KakaoTalk at `/Applications/KakaoTalk.app`
-- Currently supported KakaoTalk: 26.8.0 (build 2000)
+- Minimum supported KakaoTalk: 26.6.1. Newer releases work without downloading a new installer.
 - End users do not need Xcode.
 
 ## Install or update
 
 1. Install or update official KakaoTalk at `/Applications/KakaoTalk.app`.
-2. Download and extract the ZIP from the [latest Release](https://github.com/hubeen/dual-kakaotalk-macos/releases/latest).
+2. On first install only, download and extract the ZIP from the [latest Release](https://github.com/hubeen/dual-kakaotalk-macos/releases/latest). Later updates reuse the same folder.
 3. Quit both personal and Dual KakaoTalk applications.
 4. Right-click `Install.command`, then select **Open → Open**.
 5. Approve the macOS administrator prompt using your password or Touch ID.
@@ -41,7 +41,9 @@ The Dock distinguishes the apps by their localized names:
    - Personal KakaoTalk: `/Applications/KakaoTalk.app`
    - Dual KakaoTalk: `/Applications/KakaoTalkWork.app`
 
-After updating official KakaoTalk, quit both applications and run `Install.command` from the latest release again. The same command handles fresh installs and updates. The existing Dual KakaoTalk app is backed up before replacement and restored if installation fails.
+After updating official KakaoTalk, quit both applications and run `Install.command` from **the folder you already have**. The installer is not pinned to one KakaoTalk version, so a KakaoTalk update no longer requires downloading a new release. The same command handles fresh installs and updates, and the existing Dual KakaoTalk app is backed up before replacement and restored if installation fails.
+
+On a KakaoTalk build that has not been verified yet, only the green **menu-bar** icon step is skipped; installation continues, and dual launch plus the green **app icon** still apply.
 
 ## Uninstall
 
@@ -53,8 +55,10 @@ The uninstaller removes only `/Applications/KakaoTalkWork.app`. It preserves off
 
 ## What the installer does
 
-- Validates the official app's fixed path, bundle ID, version, build, Kakao Team ID, signature, and `Assets.car` SHA-256.
+- Validates the official app's fixed path, bundle ID, minimum version, Kakao Team ID, and signature.
 - Copies, recolors, ad-hoc signs, and verifies the staged app without administrator privileges.
+- Recolors the app icon background to green using public AppKit only, independent of the KakaoTalk version.
+- Recolors the menu-bar icons only when the `Assets.car` fingerprint matches, and skips just that step otherwise.
 - Uses administrator privileges only to import a fixed-format, digest-bound request.
 - Uses an exclusive lock and write-ahead recovery journal for concurrent or interrupted installations.
 - Shows a dedicated macOS progress bar and step description during installation and removal.
@@ -94,9 +98,10 @@ The release contains a Universal x86_64 and arm64 helper. `Assets.car` mutation 
 
 ## Limitations
 
-- Official app updates are not copied automatically; run `Install.command` again.
+- Official app updates are not copied automatically; run `Install.command` again. The same installer folder keeps working.
+- Green menu-bar icons apply only on a verified `Assets.car` fingerprint. On other builds the app icon alone distinguishes the two.
 - Ad-hoc signing may trigger macOS security warnings.
-- Installation fails closed if Apple or KakaoTalk changes an internal format.
+- Installation still fails closed if the bundle identity or the Kakao signature does not check out.
 - M1 through M5 use the same arm64 Universal build, so there is no chip-specific implementation. M3/macOS 26.5.2 is physically verified; the remaining chip and macOS combinations require physical-device validation.
 - This trusted-circle beta is not a notarized installer for general redistribution.
 

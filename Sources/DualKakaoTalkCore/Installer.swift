@@ -121,6 +121,13 @@ func recoveryOperations(phase: String, destinationExists: Bool, backupExists: Bo
     }
 }
 
+/// Outcome of the unprivileged preparation step.  `menuBarIconsRecolored` is false when this
+/// KakaoTalk build's asset catalog is not one we have verified the private CoreUI writer against.
+public struct PreparedInstall: Sendable {
+    public let requestURL: URL
+    public let menuBarIconsRecolored: Bool
+}
+
 public enum KakaoTalkWorkInstaller {
     public static let destinationPath = "/Applications/KakaoTalkWork.app"
     public static let bundleIdentifier = "com.kakao.KakaoTalkWorkMac"
@@ -129,26 +136,25 @@ public enum KakaoTalkWorkInstaller {
     private static let lockURL = URL(fileURLWithPath: "/var/run/com.dualkakaotalk.install.lock")
 
     /// Unprivileged work only: copy, mutate, and ad-hoc sign under a user-owned 0700 staging root.
-    public static func prepare(_ request: InstallRequest, version: String) throws -> URL {
+    public static func prepare(_ request: InstallRequest, version: String) throws -> PreparedInstall {
         guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 13 else {
             throw InstallerError.invalidRequest("macOS Ventura 13 or newer is required.")
         }
         let source = try canonical(request.sourceApp, mustBe: OfficialAppInspector.supportedPath)
         guard try canonical(request.destinationApp).path == destinationPath else { throw InstallerError.invalidRequest("Destination is fixed.") }
         let facts = try OfficialAppInspector.inspect(path: source.path)
-        guard request.allowedAssetsSHA256.contains(facts.assetsSHA256), AssetCatalogPatcher.supportedCatalogSHA256.contains(facts.assetsSHA256) else { throw InstallerError.commandFailed("Unsupported KakaoTalk catalog fingerprint.") }
         let root = URL(fileURLWithPath: "/private/tmp", isDirectory: true)
             .appendingPathComponent("DualKakaoTalk-\(getuid())-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         let staged = root.appendingPathComponent("KakaoTalkWork.app")
         do {
             try FileManager.default.copyItem(at: source, to: staged)
-            try mutateAndSign(staged, facts: facts, request: request)
+            let menuBarIconsRecolored = try mutateAndSign(staged, facts: facts, request: request)
             let stagedDigest = try SHA256.file(at: staged.appendingPathComponent("Contents/Resources/Assets.car"))
             let payload = PrivilegedInstallRequest(version: version, nonce: UUID().uuidString, sourcePath: source.path, destinationPath: destinationPath, stagedPath: staged.path, sourceCatalogSHA256: facts.assetsSHA256, destinationCatalogSHA256: stagedDigest)
             let requestURL = root.appendingPathComponent("request.plist")
             try writeRequest(payload, to: requestURL)
-            return requestURL
+            return PreparedInstall(requestURL: requestURL, menuBarIconsRecolored: menuBarIconsRecolored)
         } catch { try? FileManager.default.removeItem(at: root); throw error }
     }
 
@@ -186,17 +192,41 @@ public enum KakaoTalkWorkInstaller {
         throw InstallerError.commandFailed("Use prepare followed by install-release-request; direct installation is disabled.")
     }
 
-    private static func mutateAndSign(_ staged: URL, facts: OfficialAppFacts, request: InstallRequest) throws {
+    private static func mutateAndSign(_ staged: URL, facts: OfficialAppFacts, request: InstallRequest) throws -> Bool {
         let fm = FileManager.default, contents = staged.appendingPathComponent("Contents"), plist = staged.appendingPathComponent("Contents/Info.plist")
         let old = contents.appendingPathComponent("MacOS/\(facts.executableName)"), new = contents.appendingPathComponent("MacOS/\(executableName)")
         guard fm.fileExists(atPath: old.path) else { throw InstallerError.missingResource(old.path) }
         if old != new { try fm.moveItem(at: old, to: new) }
         try updatePlist(at: plist)
         try applyLocalizedDualAppNames(to: staged)
-        let assets = contents.appendingPathComponent("Resources/Assets.car"), patched = contents.appendingPathComponent("Resources/.Assets.green.car")
-        guard fm.fileExists(atPath: assets.path) else { throw InstallerError.missingResource(assets.path) }
-        try AssetCatalogPatcher.patch(.init(sourceCatalog: assets, destinationCatalog: patched, allowedSourceSHA256: request.allowedAssetsSHA256)); _ = try fm.replaceItemAt(assets, withItemAt: patched)
+        guard fm.fileExists(atPath: contents.appendingPathComponent("Resources/Assets.car").path) else {
+            throw InstallerError.missingResource(contents.appendingPathComponent("Resources/Assets.car").path)
+        }
+        // The Dock and app-switcher icon is derived through public AppKit only, so it does not
+        // depend on a fingerprinted catalog and keeps working after a KakaoTalk update.
+        try AppIconRecolorer.installDualIcon(in: staged)
+        let menuBarIconsRecolored = recolorMenuBarIcons(in: staged, facts: facts, request: request)
         try ProcessInstallCommandRunner().run("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", staged.path]); try ProcessInstallCommandRunner().run("/usr/bin/codesign", ["--verify", "--deep", "--strict", staged.path])
+        return menuBarIconsRecolored
+    }
+
+    /// Green menu-bar icons go through the private CoreUI writer, which is only trusted against
+    /// catalogs we have verified.  On any other build the step is skipped instead of failing the
+    /// install: the dual app is still identified by its green Dock icon and its display name.
+    private static func recolorMenuBarIcons(in staged: URL, facts: OfficialAppFacts, request: InstallRequest) -> Bool {
+        guard request.allowedAssetsSHA256.contains(facts.assetsSHA256),
+              AssetCatalogPatcher.supportedCatalogSHA256.contains(facts.assetsSHA256) else { return false }
+        let fm = FileManager.default
+        let assets = staged.appendingPathComponent("Contents/Resources/Assets.car")
+        let patched = staged.appendingPathComponent("Contents/Resources/.Assets.green.car")
+        do {
+            try AssetCatalogPatcher.patch(.init(sourceCatalog: assets, destinationCatalog: patched, allowedSourceSHA256: request.allowedAssetsSHA256))
+            _ = try fm.replaceItemAt(assets, withItemAt: patched)
+            return true
+        } catch {
+            try? fm.removeItem(at: patched)
+            return false
+        }
     }
 
     private static func canonical(_ url: URL, mustBe expected: String? = nil) throws -> URL {
