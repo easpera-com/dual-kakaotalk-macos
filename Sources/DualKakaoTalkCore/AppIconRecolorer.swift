@@ -114,12 +114,19 @@ public enum AppIconRecolorer {
 
     /// Returns the bundle's icon plus the `Resources`-relative file name to overwrite, when the
     /// bundle ships an `.icns` we can replace in place.
+    /// The `Contents/Resources`-relative icon file a bundle declares, with the extension CFBundle
+    /// lets authors leave off.  The installer reads this too, to tell a rebuilt icon from an
+    /// installed one, so the naming rule lives in exactly one place.
+    public static func declaredIconFileName(in app: URL) -> String? {
+        guard let data = try? Data(contentsOf: app.appendingPathComponent("Contents/Info.plist")),
+              let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+              let declared = plist["CFBundleIconFile"] as? String, !declared.isEmpty
+        else { return nil }
+        return (declared as NSString).pathExtension.isEmpty ? "\(declared).icns" : declared
+    }
+
     static func sourceIcon(in app: URL) throws -> (icon: NSImage, iconFileName: String?) {
-        let plistURL = app.appendingPathComponent("Contents/Info.plist")
-        if let data = try? Data(contentsOf: plistURL),
-           let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
-           let declared = plist["CFBundleIconFile"] as? String, !declared.isEmpty {
-            let fileName = (declared as NSString).pathExtension.isEmpty ? "\(declared).icns" : declared
+        if let fileName = declaredIconFileName(in: app) {
             let iconURL = app.appendingPathComponent("Contents/Resources/\(fileName)")
             if let image = NSImage(contentsOf: iconURL) {
                 return (image, fileName)

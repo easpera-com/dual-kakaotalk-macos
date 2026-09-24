@@ -265,7 +265,20 @@ public enum KakaoTalkWorkInstaller {
     }
     private static func destinationIsNoOp(_ destination: URL, request: PrivilegedInstallRequest) -> Bool {
         guard FileManager.default.fileExists(atPath: destination.path), let plist = try? Data(contentsOf: destination.appendingPathComponent("Contents/Info.plist")), let dictionary = try? PropertyListSerialization.propertyList(from: plist, options: [], format: nil) as? [String: Any], dictionary["CFBundleIdentifier"] as? String == bundleIdentifier, dictionary["CFBundleExecutable"] as? String == executableName, hasLocalizedDualAppNames(in: destination) else { return false }
-        return (try? SHA256.file(at: destination.appendingPathComponent("Contents/Resources/Assets.car"))) == request.destinationCatalogSHA256
+        guard (try? SHA256.file(at: destination.appendingPathComponent("Contents/Resources/Assets.car"))) == request.destinationCatalogSHA256 else { return false }
+        return installedIconMatchesStaged(destination: destination, staged: URL(fileURLWithPath: request.stagedPath))
+    }
+
+    /// The recoloured app icon is not covered by the catalog digest, so without this a rebuilt
+    /// icon -- after tuning the green, say -- would be mistaken for an install that is already
+    /// current and silently skipped.  An icon we cannot read on either side counts as a mismatch,
+    /// so the install proceeds rather than being wrongly skipped.
+    private static func installedIconMatchesStaged(destination: URL, staged: URL) -> Bool {
+        guard let fileName = AppIconRecolorer.declaredIconFileName(in: staged),
+              let installed = try? SHA256.file(at: destination.appendingPathComponent("Contents/Resources/\(fileName)")),
+              let prepared = try? SHA256.file(at: staged.appendingPathComponent("Contents/Resources/\(fileName)"))
+        else { return false }
+        return installed == prepared
     }
     private static func withExclusiveLock(_ body: () throws -> Void) throws {
         let fd = lockURL.path.withCString { Darwin.open($0, O_CREAT | O_RDWR | O_NOFOLLOW, mode_t(0o600)) }; guard fd >= 0 else { throw InstallerError.commandFailed("Cannot open installer lock.") }; defer { close(fd) }
