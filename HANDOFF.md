@@ -24,7 +24,7 @@
 
 ## 3. 무엇을 바꿨나
 
-브랜치: `claude/trusting-mayer-9tk94o` (포크 `trialismm/dual-kakaotalk-macos`)
+브랜치: `claude/trusting-mayer-9tk94o` (포크 `easpera-com/dual-kakaotalk-macos` — 2026-10-01 `trialismm`에서 이전, 옛 주소는 자동 연결됨)
 기준 커밋: `91829b7` (upstream `hubeen/dual-kakaotalk-macos`의 "Support KakaoTalk 26.8.0")
 
 | 커밋 | 내용 |
@@ -181,10 +181,12 @@ DUAL_KAKAOTALK_ARCHS=arm64 ./Scripts/build-release.sh
 ## 10. 새 세션 부트스트랩
 
 1. 새 세션의 기본 작업 폴더는 `raycast-keychain`(**무관한 별개 프로젝트**)일 수 있음.
-   이 저장소를 세션에 붙여야 함: `add_repo` 로 `trialismm/dual-kakaotalk-macos` (access: `push`).
+   이 저장소를 세션에 붙여야 함: `add_repo` 로 `easpera-com/dual-kakaotalk-macos` (access: `push`).
 2. **주의**: `add_repo`는 세션에 이미 붙은 저장소와 **같은 소유자만** 추가 가능.
-   `trialismm` 소유이므로 문제없음. 반대로 upstream(`hubeen/...`)은 추가 불가이며,
+   이제 소유자가 `easpera-com`이므로, 세션에 붙은 저장소가 `trialismm` 소유라면 거부될 수 있음 —
+   그때는 `easpera-com` 소유 저장소에서 세션을 시작할 것. upstream(`hubeen/...`)은 추가 불가이며,
    그 때문에 이전 세션에서는 포크를 사용자가 직접 만들어야 했음.
+   사용자 맥에서 직접 도는 세션이라면 `add_repo` 없이 `~/Projects/dual-kakaotalk-macos`에서 바로 작업 가능.
 3. 개발 컨테이너는 **리눅스**라 Swift 툴체인도 AppKit도 없음.
    **코드 작성과 리뷰까지만 가능하고, 컴파일·테스트·실행은 전부 사용자 맥에서 해야 함.**
    순수 계산 로직은 파이썬으로 포팅해 검증하는 방법이 유효했음.
