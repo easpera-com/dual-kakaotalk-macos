@@ -89,6 +89,8 @@
 2. **Xcode가 설치돼 있지 않고 Command Line Tools만 있음.**
    → `XCTest`가 없어서 **`swift test`는 실행 불가.** 이건 환경 문제이지 코드 문제가 아님.
    → 새 세션에서 `swift test` 실패 로그를 보면 이 사실을 먼저 떠올릴 것.
+   → 대신 **GitHub Actions(`macos-14`, Xcode 있음)** 가 `swift test`와 Universal 빌드를 돌림.
+     브랜치에 push하면 자동 실행되고, 결과는 `gh run list -R easpera-com/dual-kakaotalk-macos`로 확인.
 3. 빌드 로그의 `ld: warning: search path ... not found`는 Xcode 미설치로 인한 정상 경고. 무시.
 4. 저장소 위치: 원래 `~/dual-kakaotalk-macos`. 사용자가 `~/Projects/` 아래로 옮겼을 수 있음 —
    작업 전에 실제 경로를 물어볼 것. (폴더를 옮겨도 동작에는 문제 없음을 이미 확인·안내했음)
@@ -129,11 +131,15 @@ DUAL_KAKAOTALK_ARCHS=arm64 ./Scripts/build-release.sh
    카카오톡이 실행 중 `NSApplication.applicationIconImage`로 아이콘을 덮어쓰지 않는다는 뜻.
    원 저장소는 Dock 아이콘 새로고침 시도를 되돌린 이력이 있음(`fa7c90d`, `f245951`) —
    번들 `.icns` 자체를 바꾸는 이 방식은 그 문제를 겪지 않음.
+6. **`swift test` 35개 전부 통과 + Universal(`x86_64` + `arm64`) 릴리스 빌드 성공** — 2026-10-01 CI
+   ([실행 기록](https://github.com/easpera-com/dual-kakaotalk-macos/actions/runs/36863382141)).
+   첫 실행에서 `testAntialiasedEdgePixelsArePartiallyShifted` 1개가 실패했는데, 코드가 아니라 검사 기준 문제였음:
+   `luminanceScale = 0.75`로 일부러 어둡게 하므로 경계 픽셀의 초록 채널은 128 → 128로 그대로이고
+   색조만 31.6° → 61.8°로 이동함. 초록 채널 대신 색조로 판정하도록 고침(`9aa5ada`).
 
 ### 미검증 — 새 세션이 이어받을 부분
-1. `swift test` — XCTest가 없어 미실행. Xcode 설치 시에만 가능(용량 10GB+, 급하지 않음).
-2. Universal(x86_64 포함) 빌드 — 이 맥에서는 불가. 배포하려면 다른 환경 필요.
-3. 다음 카카오톡 업데이트 후 `Install.command` 재실행이 실제로 통과하는지 — **요청 1의 유일한 실전 확인.**
+1. Intel 실기기 실행 — 빌드에 `x86_64`는 포함되지만 인텔 맥에서 돌려 본 적은 없음.
+2. 다음 카카오톡 업데이트 후 `Install.command` 재실행이 실제로 통과하는지 — **요청 1의 유일한 실전 확인.**
    설치 당시 사용자의 카카오톡은 **26.8.0 (2000)**, 즉 예전 고정값과 같은 버전이었음
    (설치 로그 `diagnostic.kakao_version=26.8.0`, `diagnostic.menu_bar_icons_recolored=true`).
    그래서 메뉴 막대 아이콘도 지문이 일치해 초록색으로 적용됐고, 버전 고정 제거 경로는
@@ -146,8 +152,14 @@ DUAL_KAKAOTALK_ARCHS=arm64 ./Scripts/build-release.sh
    `AppIconRecolorer.swift`의 `saturationCap`, `luminanceScale` 두 값만 조정하고 재빌드 후 재설치.
    (설치 프로그램의 "변경 없음" 판정은 `Assets.car`뿐 아니라 아이콘 파일도 비교하므로,
    아이콘만 바뀌어도 재설치가 정상 진행됨 — `installedIconMatchesStaged` 참고)
-2. **upstream PR** — `hubeen/dual-kakaotalk-macos`에 기여할지 사용자에게 확인.
-   보낼 경우 이 `HANDOFF.md`를 먼저 삭제할 것.
+2. **upstream PR — 2026-10-01 보냄:** [hubeen/dual-kakaotalk-macos#10](https://github.com/hubeen/dual-kakaotalk-macos/pull/10).
+   - PR 브랜치는 `unpin-version-green-icon`. upstream `91829b7`에서 이 브랜치의 커밋을 cherry-pick하되
+     `HANDOFF.md`를 빼고, 커밋 메시지의 `Claude-Session:` 줄을 지운 것. 코드는 작업 브랜치와 동일.
+   - 원 제작자가 수정을 요청하면 **PR 브랜치에 커밋**하고 같은 변경을 작업 브랜치에도 반영할 것.
+   - 배경: 사용자는 easpera.com에 '유틸리티 모음'을 만들 계획. 사이트는 링크만 걸고, PR이 받아들여지면
+     **원 저장소 릴리스로 연결**하는 것이 1안. 2~3주(~2026-10-22) 무응답·거절이면
+     `easpera-com/dual-kakaotalk-macos`에서 직접 릴리스하는 것이 2안 — 이때는 `Install.command`·
+     `Uninstall.command`의 이슈 링크와 README 다운로드 링크를 이 저장소로 바꿔야 함.
 3. **자동 업데이트** — 사용자가 원하면. 설계는 이미 검토함:
    감시용 LaunchAgent + `~/Applications` 설치(관리자 인증 불필요) + 자체 서명 인증서로 신원 고정
    (ad-hoc 서명은 갱신마다 신원이 바뀌어 알림·권한이 재요청될 수 있음).
