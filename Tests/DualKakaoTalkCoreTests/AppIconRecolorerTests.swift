@@ -65,7 +65,11 @@ final class AppIconRecolorerTests: XCTestCase {
         let edge = RGBA(red: 0xC8, green: 0x80, blue: 0x30, alpha: 0xFF)
         let output = AppIconRecolorer.transform(edge)
         XCTAssertNotEqual(output, edge)
-        XCTAssertGreaterThan(output.green, edge.green)
+        // Judge the shift by hue, not by the green channel: luminanceScale settles the field
+        // darker, so a shifted pixel can carry no more green than it started with.
+        let shiftedHue = AppIconRecolorer.hsb(output).hue
+        XCTAssertGreaterThan(shiftedHue, AppIconRecolorer.hsb(edge).hue)
+        XCTAssertLessThan(shiftedHue, AppIconRecolorer.targetHue)
         XCTAssertLessThan(output.red, edge.red)
         XCTAssertEqual(output.alpha, edge.alpha)
     }
