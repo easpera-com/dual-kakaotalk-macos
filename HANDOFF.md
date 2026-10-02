@@ -3,12 +3,32 @@
 이 문서는 **메모리가 없는 새 Claude 세션이 이 작업을 이어받기 위한 것**입니다.
 작업자는 비개발자이므로, 설명은 개념 위주로 하고 명령어는 그대로 복사해 쓸 수 있게 제시할 것.
 
-> 이 파일은 이 포크에서만 쓰는 작업 메모입니다. 원 저장소(upstream)에 PR을 보낼 때는 먼저 삭제할 것.
+> 이 파일은 작업 브랜치에서만 쓰는 메모입니다. upstream PR 브랜치(`unpin-version-green-icon`)에는
+> 이미 빠져 있으니, 작업 브랜치에서는 지우지 말 것.
+
+## 0. 지금 상태 (2026-10-02 기준) — 새 세션은 여기부터
+
+1. **upstream PR [#10](https://github.com/hubeen/dual-kakaotalk-macos/pull/10)을 보내고 원 제작자 답을 기다리는 중.**
+   2026-10-02 기준 댓글·리뷰 0개, upstream `main`은 여전히 `91829b7`.
+2. 코드 작업은 끝났음. 실기기 설치, Dock 아이콘 초록색, CI(`swift test` 35개, Universal 빌드) 모두 확인됨(6절).
+3. 새 세션이 처음 할 일:
+   ```bash
+   gh pr view 10 -R hubeen/dual-kakaotalk-macos --comments
+   gh api 'repos/hubeen/dual-kakaotalk-macos/commits?per_page=3' --jq '.[] | "\(.sha[0:7]) \(.commit.message | split("\n")[0])"'
+   ```
+   - 수정 요청이 왔으면 → 7절 2번 절차대로 PR 브랜치에 반영.
+   - 병합됐으면 → 작업 브랜치를 upstream에 맞춰 정리하고, 사이트 유틸리티 카드는 upstream 릴리스로 연결(7절 2번).
+   - ~2026-10-22까지 무응답·거절이면 → 2안(직접 배포)을 사용자에게 제안. 결정은 사용자 몫.
+4. **사용자 작업 규칙** (전역 `~/.codex/AGENTS.md` — 로컬 세션이면 자동으로 읽힘):
+   - 코드·문서 수정 전에 **계획(파일, 근본 원인, 접근법)을 먼저 보여주고**, 사용자가 "진행해"/"가자"라고
+     한 뒤에만 수정.
+   - PR 전송, 남의 저장소 작업, 저장소 이전 같은 **외부 공개 작업은 건별로 따로 확인.**
+   - 코드 저장소는 `easpera-com` 조직 소유. 유료 결제(예: Apple Developer $99)는 실행하지 말고 알리기만.
 
 ## 1. 한 줄 요약
 
 `hubeen/dual-kakaotalk-macos`(맥에서 카카오톡 2개 동시 실행) 를 포크해서 **두 가지를 고쳤고,
-실기기 빌드·설치와 Dock 아이콘 색 육안 확인까지 마친 상태**입니다. 남은 것은 선택적 튜닝과 배포 준비뿐입니다.
+실기기 설치·Dock 아이콘 확인·CI 검증을 마친 뒤 upstream에 PR을 보낸 상태**입니다.
 
 ## 2. 배경 — 왜 이 작업을 했나
 
@@ -32,6 +52,12 @@
 | `262196e` | 요청 1·2의 본체. 버전 고정 제거 + 앱 아이콘 초록색 |
 | `0e42487` | 배포 아티팩트 버전 표기를 `Install.command`와 일치 (`0.2.0-beta.1`) |
 | `0a823c8` | 배포 스크립트가 빌드 결과물을 못 찾던 문제 수정 + `DUAL_KAKAOTALK_ARCHS` 추가 |
+| `e0c4d30` | "변경 없음" 판정에 아이콘 비교 추가 (색만 바꿔 재설치해도 건너뛰지 않게) |
+| `86c11ec` | CI 업로드 경로를 버전 패턴으로 (`v0.1.0-beta.21` 고정이라 실패하던 것) |
+| `9aa5ada` | 경계 픽셀 검사를 초록 채널 대신 색조로 판정 (6절 6번) |
+
+이 밖의 커밋은 전부 `HANDOFF.md` 갱신. PR 브랜치 `unpin-version-green-icon`에는 위 6개만
+(해시는 다름) 들어 있음.
 
 ### 3-1. 요청 1 — 버전 고정 제거
 
@@ -92,14 +118,14 @@
    → 대신 **GitHub Actions(`macos-14`, Xcode 있음)** 가 `swift test`와 Universal 빌드를 돌림.
      브랜치에 push하면 자동 실행되고, 결과는 `gh run list -R easpera-com/dual-kakaotalk-macos`로 확인.
 3. 빌드 로그의 `ld: warning: search path ... not found`는 Xcode 미설치로 인한 정상 경고. 무시.
-4. 저장소 위치: 원래 `~/dual-kakaotalk-macos`. 사용자가 `~/Projects/` 아래로 옮겼을 수 있음 —
-   작업 전에 실제 경로를 물어볼 것. (폴더를 옮겨도 동작에는 문제 없음을 이미 확인·안내했음)
-5. 카카오톡 본체는 **Mac App Store 설치본**. 맥용 카카오톡은 사실상 앱스토어 단일 채널.
+4. 저장소 위치: **`~/Projects/dual-kakaotalk-macos`** (2026-10-01 확인. 원래는 `~/dual-kakaotalk-macos`였음)
+5. `gh` CLI가 로그인돼 있고, 사용자는 `easpera-com` 조직의 admin.
+6. 카카오톡 본체는 **Mac App Store 설치본**. 맥용 카카오톡은 사실상 앱스토어 단일 채널.
 
 ## 5. 재현 명령 (그대로 복사 가능)
 
 ```bash
-cd ~/dual-kakaotalk-macos          # 또는 사용자가 옮긴 경로
+cd ~/Projects/dual-kakaotalk-macos
 git pull
 
 # 코드가 컴파일되는지 (swift test는 이 맥에서 불가)
@@ -192,13 +218,18 @@ DUAL_KAKAOTALK_ARCHS=arm64 ./Scripts/build-release.sh
 
 ## 10. 새 세션 부트스트랩
 
-1. 새 세션의 기본 작업 폴더는 `raycast-keychain`(**무관한 별개 프로젝트**)일 수 있음.
-   이 저장소를 세션에 붙여야 함: `add_repo` 로 `easpera-com/dual-kakaotalk-macos` (access: `push`).
-2. **주의**: `add_repo`는 세션에 이미 붙은 저장소와 **같은 소유자만** 추가 가능.
-   이제 소유자가 `easpera-com`이므로, 세션에 붙은 저장소가 `trialismm` 소유라면 거부될 수 있음 —
-   그때는 `easpera-com` 소유 저장소에서 세션을 시작할 것. upstream(`hubeen/...`)은 추가 불가이며,
-   그 때문에 이전 세션에서는 포크를 사용자가 직접 만들어야 했음.
-   사용자 맥에서 직접 도는 세션이라면 `add_repo` 없이 `~/Projects/dual-kakaotalk-macos`에서 바로 작업 가능.
-3. 개발 컨테이너는 **리눅스**라 Swift 툴체인도 AppKit도 없음.
-   **코드 작성과 리뷰까지만 가능하고, 컴파일·테스트·실행은 전부 사용자 맥에서 해야 함.**
-   순수 계산 로직은 파이썬으로 포팅해 검증하는 방법이 유효했음.
+세션 종류에 따라 다름. 먼저 `pwd`와 `uname`으로 어느 쪽인지 확인할 것.
+
+### A. 사용자 맥에서 도는 로컬 세션 (권장 — 2026-10-01 세션이 이 방식)
+1. 작업 폴더 `~/Projects/dual-kakaotalk-macos`에서 시작. `add_repo` 불필요.
+2. `swift build`, `build-release.sh`(arm64), `gh` 모두 직접 실행 가능. `swift test`만 불가(4절 2번) → CI 사용.
+3. 전역 규칙(`~/.codex/AGENTS.md`)과 이 프로젝트의 Claude 메모리가 자동으로 읽힘.
+
+### B. 클라우드(리눅스) 세션
+1. 이 저장소를 세션에 붙여야 함: `add_repo` 로 `easpera-com/dual-kakaotalk-macos` (access: `push`).
+   `add_repo`는 세션에 이미 붙은 저장소와 **같은 소유자만** 추가 가능 — 이미 붙은 저장소가
+   `trialismm` 소유라면 거부될 수 있으니, 그때는 `easpera-com` 소유 저장소에서 세션을 시작할 것.
+   upstream(`hubeen/...`)은 추가 불가.
+2. 리눅스라 Swift 툴체인도 AppKit도 없음. **코드 작성·리뷰만 가능**하고, 검증은 push 후 CI로,
+   설치·실행은 사용자 맥에서. 순수 계산 로직은 파이썬으로 포팅해 검증하는 방법이 유효했음.
+3. 전역 규칙 파일이 없으므로 0절 4번의 작업 규칙을 직접 따를 것.
