@@ -118,14 +118,14 @@
    → 대신 **GitHub Actions(`macos-14`, Xcode 있음)** 가 `swift test`와 Universal 빌드를 돌림.
      브랜치에 push하면 자동 실행되고, 결과는 `gh run list -R easpera-com/dual-kakaotalk-macos`로 확인.
 3. 빌드 로그의 `ld: warning: search path ... not found`는 Xcode 미설치로 인한 정상 경고. 무시.
-4. 저장소 위치: **`~/Projects/dual-kakaotalk-macos`** (2026-10-01 확인. 원래는 `~/dual-kakaotalk-macos`였음)
+4. 저장소 위치: **`~/Projects/external/dual-kakaotalk-macos`** (2026-10-01 확인. 원래는 `~/dual-kakaotalk-macos`였음)
 5. `gh` CLI가 로그인돼 있고, 사용자는 `easpera-com` 조직의 admin.
 6. 카카오톡 본체는 **Mac App Store 설치본**. 맥용 카카오톡은 사실상 앱스토어 단일 채널.
 
 ## 5. 재현 명령 (그대로 복사 가능)
 
 ```bash
-cd ~/Projects/dual-kakaotalk-macos
+cd ~/Projects/external/dual-kakaotalk-macos
 git pull
 
 # 코드가 컴파일되는지 (swift test는 이 맥에서 불가)
@@ -221,7 +221,7 @@ DUAL_KAKAOTALK_ARCHS=arm64 ./Scripts/build-release.sh
 세션 종류에 따라 다름. 먼저 `pwd`와 `uname`으로 어느 쪽인지 확인할 것.
 
 ### A. 사용자 맥에서 도는 로컬 세션 (권장 — 2026-10-01 세션이 이 방식)
-1. 작업 폴더 `~/Projects/dual-kakaotalk-macos`에서 시작. `add_repo` 불필요.
+1. 작업 폴더 `~/Projects/external/dual-kakaotalk-macos`에서 시작. `add_repo` 불필요.
 2. `swift build`, `build-release.sh`(arm64), `gh` 모두 직접 실행 가능. `swift test`만 불가(4절 2번) → CI 사용.
 3. 전역 규칙(`~/.codex/AGENTS.md`)과 이 프로젝트의 Claude 메모리가 자동으로 읽힘.
 
