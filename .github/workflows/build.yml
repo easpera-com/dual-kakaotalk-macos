@@ -1,8 +1,17 @@
 name: Build
 
+# 문서 · 훅 파일만 바뀐 push · PR 은 빌드하지 않는다(2026-10-18 재설계 세팅 — 공개 저장소라 분은 무료지만 macOS 러너 시간을 줄임). 손으로는 workflow_dispatch
 on:
   push:
+    paths-ignore:
+      - "**/*.md"
+      - ".claude/**"
+      - ".codex/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - ".claude/**"
+      - ".codex/**"
   workflow_dispatch:
 
 permissions:

@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(cd \"./$(git rev-parse --show-cdup 2>/dev/null)\" 2>/dev/null && pwd)\" && CLAUDE_PROJECT_DIR=\"$R\" GUARD_CLIENT=codex node \"$R/.claude/hooks/guard.mjs\" || printf '%s' '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"가드 훅(.claude/hooks/guard.mjs)을 찾지 못했거나 판정하다 멈췄습니다. 안전을 위해 막습니다 — 프로젝트 점검(/project-audit)으로 가드를 다시 넣습니다\"}}'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(cd \"./$(git rev-parse --show-cdup 2>/dev/null)\" 2>/dev/null && pwd)\" && node \"$R/.claude/hooks/output-scan.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
